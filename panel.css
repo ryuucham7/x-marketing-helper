@@ -1,0 +1,132 @@
+#xmh-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  background: #15202b;
+  border: 1px solid #38444d;
+  border-radius: 16px;
+  padding: 16px;
+  width: 280px;
+  font-family: -apple-system, sans-serif;
+  color: #e7e9ea;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+#xmh-panel h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #1d9bf0;
+}
+
+#xmh-panel .xmh-stats {
+  font-size: 13px;
+  color: #8b98a5;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+#xmh-panel .xmh-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border: none;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+#xmh-panel .xmh-btn:hover { opacity: 0.85; }
+#xmh-panel .xmh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#xmh-panel .xmh-btn-like {
+  background: #f91880;
+  color: white;
+}
+
+#xmh-panel .xmh-btn-follow {
+  background: #1d9bf0;
+  color: white;
+}
+
+#xmh-panel .xmh-btn-reply {
+  background: #ff6b00;
+  color: white;
+}
+
+#xmh-panel .xmh-btn-all {
+  background: #00ba7c;
+  color: white;
+}
+
+#xmh-panel .xmh-btn-stop {
+  background: #71767b;
+  color: white;
+}
+
+#xmh-panel .xmh-log {
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: #8b98a5;
+  margin-top: 10px;
+  border-top: 1px solid #38444d;
+  padding-top: 8px;
+}
+
+#xmh-panel .xmh-log div {
+  padding: 2px 0;
+}
+
+#xmh-panel .xmh-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99998;
+  background: #1d9bf0;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+#xmh-panel .xmh-settings {
+  margin-top: 10px;
+  border-top: 1px solid #38444d;
+  padding-top: 8px;
+}
+
+#xmh-panel .xmh-settings label {
+  font-size: 12px;
+  color: #8b98a5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0;
+}
+
+#xmh-panel .xmh-settings input[type="number"] {
+  width: 50px;
+  background: #273340;
+  border: 1px solid #38444d;
+  border-radius: 4px;
+  color: #e7e9ea;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+#xmh-panel .xmh-settings input[type="password"] {
+  background: #273340;
+  border: 1px solid #38444d;
+  border-radius: 4px;
+  color: #e7e9ea;
+  padding: 2px 6px;
+  font-size: 11px;
+}

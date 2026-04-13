@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "X Marketing Helper",
+  "version": "2.0",
+  "description": "X上でいいね・リプ・フォローを効率化するツール（AI生成リプ付き）",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.anthropic.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content.js"],
+      "css": ["panel.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
