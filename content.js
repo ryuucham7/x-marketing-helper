@@ -554,8 +554,100 @@ function readSettings() {
   updateStats();
 }
 
+// === ツイート横ボタン（手動モード） ===
+function addTweetButtons() {
+  const tweets = document.querySelectorAll('article[data-testid="tweet"]');
+  tweets.forEach((tweet) => {
+    // 既にボタン追加済みならスキップ
+    if (tweet.querySelector(".xmh-tweet-btn")) return;
+
+    // ボタンコンテナ
+    const container = document.createElement("div");
+    container.style.cssText = "display:flex;gap:6px;padding:4px 12px;";
+
+    // いいね+リプ ボタン
+    const likeReplyBtn = document.createElement("button");
+    likeReplyBtn.className = "xmh-tweet-btn";
+    likeReplyBtn.textContent = "♥+リプ";
+    likeReplyBtn.style.cssText = "background:#1d9bf0;color:white;border:none;border-radius:9999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;opacity:0.85;transition:opacity 0.2s;";
+    likeReplyBtn.addEventListener("mouseenter", () => { likeReplyBtn.style.opacity = "1"; });
+    likeReplyBtn.addEventListener("mouseleave", () => { likeReplyBtn.style.opacity = "0.85"; });
+    likeReplyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      likeReplyBtn.disabled = true;
+      likeReplyBtn.textContent = "生成中...";
+
+      // いいね
+      await likeOne(tweet);
+      const user = getTweetUser(tweet).split("\n")[0];
+      addLog(`LIKE: ${user}`);
+      counts.likes++;
+      updateStats();
+
+      // AI リプ生成
+      const text = getTweetText(tweet);
+      const reply = await pickReply(text);
+
+      // リプ実行（確認ダイアログ付き）
+      const replied = await replyToTweet(tweet, reply);
+      if (replied) {
+        counts.replies++;
+        addLog(`REPLY: ${user} ← "${reply}"`);
+        updateStats();
+        likeReplyBtn.textContent = "済";
+        likeReplyBtn.style.background = "#00ba7c";
+      } else {
+        likeReplyBtn.textContent = "♥+リプ";
+        likeReplyBtn.disabled = false;
+      }
+    });
+
+    // リプのみ ボタン
+    const replyOnlyBtn = document.createElement("button");
+    replyOnlyBtn.className = "xmh-tweet-btn";
+    replyOnlyBtn.textContent = "リプ";
+    replyOnlyBtn.style.cssText = "background:#ff6b00;color:white;border:none;border-radius:9999px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;opacity:0.85;transition:opacity 0.2s;";
+    replyOnlyBtn.addEventListener("mouseenter", () => { replyOnlyBtn.style.opacity = "1"; });
+    replyOnlyBtn.addEventListener("mouseleave", () => { replyOnlyBtn.style.opacity = "0.85"; });
+    replyOnlyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      replyOnlyBtn.disabled = true;
+      replyOnlyBtn.textContent = "生成中...";
+
+      const text = getTweetText(tweet);
+      const reply = await pickReply(text);
+
+      const replied = await replyToTweet(tweet, reply);
+      if (replied) {
+        counts.replies++;
+        const user = getTweetUser(tweet).split("\n")[0];
+        addLog(`REPLY: ${user} ← "${reply}"`);
+        updateStats();
+        replyOnlyBtn.textContent = "済";
+        replyOnlyBtn.style.background = "#00ba7c";
+      } else {
+        replyOnlyBtn.textContent = "リプ";
+        replyOnlyBtn.disabled = false;
+      }
+    });
+
+    container.appendChild(likeReplyBtn);
+    container.appendChild(replyOnlyBtn);
+
+    // ツイートの下部に挿入
+    const actionBar = tweet.querySelector('[role="group"]');
+    if (actionBar) {
+      actionBar.parentNode.insertBefore(container, actionBar.nextSibling);
+    } else {
+      tweet.appendChild(container);
+    }
+  });
+}
+
 // === 起動 ===
 setTimeout(createPanel, 2000);
+// ツイート横ボタンを定期的に追加（新しいツイートが読み込まれるたびに）
+setInterval(addTweetButtons, 2000);
 
 let lastUrl = location.href;
 setInterval(() => {
