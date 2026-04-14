@@ -77,7 +77,6 @@ const DEFAULT_SETTINGS = {
   maxLikes: 50,
   maxFollows: 25,
   maxReplies: 15,
-  apiKey: "",
 };
 
 // === 状態管理 ===
@@ -95,11 +94,11 @@ function isSpam(text) {
   return SPAM_WORDS.some((w) => text.includes(w));
 }
 
-// AI生成リプライ（Claude API経由）
+// AI生成リプライ（ローカルプロキシ経由）
 async function generateAIReply(tweetText) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
-      { type: "generateReply", tweetText, apiKey: settings.apiKey },
+      { type: "generateReply", tweetText },
       (response) => {
         if (response && response.reply) {
           resolve(response.reply);
@@ -125,17 +124,14 @@ function pickReplyFallback(tweetText) {
 
 // リプライ取得（AI優先、失敗時テンプレにフォールバック）
 async function pickReply(tweetText) {
-  if (settings.apiKey) {
-    try {
-      const reply = await generateAIReply(tweetText);
-      addLog("AI生成リプ");
-      return reply;
-    } catch (e) {
-      addLog(`AI失敗、テンプレ使用: ${e.message}`);
-      return pickReplyFallback(tweetText);
-    }
+  try {
+    const reply = await generateAIReply(tweetText);
+    addLog("AI生成リプ");
+    return reply;
+  } catch (e) {
+    addLog(`AI失敗、テンプレ使用: ${e.message}`);
+    return pickReplyFallback(tweetText);
   }
-  return pickReplyFallback(tweetText);
 }
 
 function addLog(msg) {
@@ -445,7 +441,6 @@ function createPanel() {
     <button class="xmh-btn xmh-btn-stop" id="xmh-stop" style="display:none">停止</button>
 
     <div class="xmh-settings">
-      <label>Claude API Key <input type="password" id="xmh-api-key" value="" placeholder="sk-ant-..." style="width:140px"></label>
       <label>間隔(秒) <input type="number" id="xmh-delay" value="${settings.delay}" min="3" max="60"></label>
       <label>いいね上限 <input type="number" id="xmh-max-likes" value="${settings.maxLikes}" min="1" max="200"></label>
       <label>リプ上限 <input type="number" id="xmh-max-replies" value="${settings.maxReplies}" min="1" max="50"></label>
@@ -471,8 +466,6 @@ function createPanel() {
   });
   document.getElementById("xmh-stop").addEventListener("click", stopAll);
 
-  // 保存済みAPIキー復元
-  restoreApiKey();
 }
 
 function readSettings() {
@@ -480,26 +473,8 @@ function readSettings() {
   settings.maxLikes = parseInt(document.getElementById("xmh-max-likes").value) || 50;
   settings.maxReplies = parseInt(document.getElementById("xmh-max-replies").value) || 15;
   settings.maxFollows = parseInt(document.getElementById("xmh-max-follows").value) || 25;
-  settings.apiKey = document.getElementById("xmh-api-key").value.trim();
-
-  // APIキーを保存（次回から自動入力）
-  if (settings.apiKey) {
-    chrome.storage.local.set({ xmhApiKey: settings.apiKey });
-  }
-
   counts = { likes: 0, follows: 0, replies: 0, skipped: 0 };
   updateStats();
-}
-
-// 保存済みAPIキーを復元
-function restoreApiKey() {
-  chrome.storage.local.get("xmhApiKey", (data) => {
-    if (data.xmhApiKey) {
-      const el = document.getElementById("xmh-api-key");
-      if (el) el.value = data.xmhApiKey;
-      settings.apiKey = data.xmhApiKey;
-    }
-  });
 }
 
 // === 起動 ===
