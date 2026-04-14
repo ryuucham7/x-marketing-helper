@@ -697,40 +697,25 @@ function openEditModal(initialText) {
 
 // X のツイート投稿欄に入力して投稿
 async function postTweet(text) {
-  // ホームに移動（投稿欄がある場所）
+  // クリップボードにコピー
+  await navigator.clipboard.writeText(text);
+  addLog("クリップボードにコピーしました");
+
+  // ホームに移動
   if (!location.href.includes("/home")) {
     window.location.href = "https://x.com/home";
-    // ページ遷移後に投稿するためにlocalStorageに保存
-    localStorage.setItem("xmh-pending-post", text);
     return;
   }
 
   await sleep(1);
 
-  // 投稿欄を探してクリック
+  // 投稿欄にフォーカス
   const tweetBox = document.querySelector('[data-testid="tweetTextarea_0"]');
-  if (!tweetBox) {
-    addLog("投稿欄が見つかりません。ホーム画面で実行してください");
-    // クリップボードにコピー
-    navigator.clipboard.writeText(text).then(() => {
-      addLog("クリップボードにコピーしました。手動で貼り付けてください");
-    });
-    return;
+  if (tweetBox) {
+    tweetBox.focus();
   }
 
-  tweetBox.focus();
-  await sleep(0.5);
-  document.execCommand("insertText", false, text);
-  await sleep(1);
-
-  // 投稿ボタンをクリック
-  const postBtn = document.querySelector('[data-testid="tweetButtonInline"]');
-  if (postBtn) {
-    postBtn.click();
-    addLog(`投稿完了: ${text.slice(0, 40)}...`);
-  } else {
-    addLog("投稿ボタンが見つかりません。手動で投稿してください");
-  }
+  addLog("Cmd+V で貼り付けて投稿してください");
 }
 
 // ページ読み込み時に保留中の投稿があればセット
