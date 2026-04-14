@@ -208,9 +208,86 @@ async function replyToTweet(article, replyText) {
     return false;
   }
 
-  sendBtn.click();
-  await sleep(2);
-  return true;
+  // 確認ダイアログ（送信前に内容を確認できる）
+  const action = await showReplyConfirm(replyText, article);
+
+  if (action === "send") {
+    sendBtn.click();
+    await sleep(2);
+    return true;
+  } else if (action === "edit") {
+    // ユーザーが編集済み。モーダルは開いたまま手動送信を待つ
+    addLog("手動編集モード、送信したら次へ進みます");
+    await waitForReplyModalClose();
+    return true;
+  } else {
+    // スキップ
+    const closeBtn = document.querySelector('[data-testid="app-bar-close"]');
+    if (closeBtn) closeBtn.click();
+    await sleep(1);
+    addLog("リプスキップ");
+    return false;
+  }
+}
+
+// リプライ確認ダイアログ
+function showReplyConfirm(replyText, article) {
+  return new Promise((resolve) => {
+    // 元ツイートの情報
+    const tweetText = getTweetText(article);
+    const user = getTweetUser(article).split("\n")[0];
+
+    const overlay = document.createElement("div");
+    overlay.id = "xmh-confirm-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:100000;display:flex;align-items:center;justify-content:center;";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background:#15202b;border:1px solid #38444d;border-radius:16px;padding:20px;max-width:480px;width:90%;color:#e7e9ea;font-family:-apple-system,sans-serif;";
+
+    dialog.innerHTML = `
+      <div style="font-size:13px;color:#8b98a5;margin-bottom:8px;">元ツイート (${user}):</div>
+      <div style="font-size:14px;margin-bottom:16px;padding:10px;background:#273340;border-radius:8px;max-height:80px;overflow-y:auto;">${tweetText.slice(0, 200)}</div>
+      <div style="font-size:13px;color:#8b98a5;margin-bottom:8px;">リプライ内容:</div>
+      <div style="font-size:16px;margin-bottom:20px;padding:10px;background:#273340;border-radius:8px;color:#1d9bf0;">${replyText}</div>
+      <div style="display:flex;gap:8px;">
+        <button id="xmh-confirm-send" style="flex:1;padding:10px;border:none;border-radius:9999px;background:#1d9bf0;color:white;font-size:14px;font-weight:700;cursor:pointer;">送信</button>
+        <button id="xmh-confirm-edit" style="flex:1;padding:10px;border:none;border-radius:9999px;background:#ff6b00;color:white;font-size:14px;font-weight:700;cursor:pointer;">自分で編集</button>
+        <button id="xmh-confirm-skip" style="flex:1;padding:10px;border:none;border-radius:9999px;background:#71767b;color:white;font-size:14px;font-weight:700;cursor:pointer;">スキップ</button>
+      </div>
+    `;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    document.getElementById("xmh-confirm-send").addEventListener("click", () => {
+      overlay.remove();
+      resolve("send");
+    });
+    document.getElementById("xmh-confirm-edit").addEventListener("click", () => {
+      overlay.remove();
+      resolve("edit");
+    });
+    document.getElementById("xmh-confirm-skip").addEventListener("click", () => {
+      overlay.remove();
+      resolve("skip");
+    });
+  });
+}
+
+// リプライモーダルが閉じるのを待つ（手動編集・送信後）
+function waitForReplyModalClose() {
+  return new Promise((resolve) => {
+    const check = setInterval(() => {
+      const modal = document.querySelector('[data-testid="tweetButton"]');
+      // モーダルが消えたら（送信完了）resolve
+      if (!modal) {
+        clearInterval(check);
+        resolve();
+      }
+    }, 1000);
+    // 最大2分で抜ける
+    setTimeout(() => { clearInterval(check); resolve(); }, 120000);
+  });
 }
 
 async function followFromArticle(article) {
