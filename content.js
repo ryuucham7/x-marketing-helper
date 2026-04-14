@@ -538,6 +538,7 @@ function createPanel() {
     <button class="xmh-btn xmh-btn-reply" id="xmh-like-reply">いいね + リプ</button>
     <button class="xmh-btn xmh-btn-all" id="xmh-all">フルコース（いいね+リプ+フォロー）</button>
     <button class="xmh-btn xmh-btn-stop" id="xmh-stop" style="display:none">停止</button>
+    <button class="xmh-btn xmh-btn-news" id="xmh-news">AIニュース投稿</button>
 
     <div class="xmh-settings">
       <label>間隔(秒) <input type="number" id="xmh-delay" value="${settings.delay}" min="3" max="60"></label>
@@ -564,6 +565,7 @@ function createPanel() {
     runAll();
   });
   document.getElementById("xmh-stop").addEventListener("click", stopAll);
+  document.getElementById("xmh-news").addEventListener("click", openNewsDrafts);
 
 }
 
@@ -574,6 +576,170 @@ function readSettings() {
   settings.maxFollows = parseInt(document.getElementById("xmh-max-follows").value) || 25;
   counts = { likes: 0, follows: 0, replies: 0, skipped: 0 };
   updateStats();
+}
+
+// === ニュースドラフト投稿機能 ===
+async function openNewsDrafts() {
+  const btn = document.getElementById("xmh-news");
+  btn.disabled = true;
+  btn.textContent = "取得中...";
+
+  try {
+    const data = await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: "getNewsDrafts" }, (response) => {
+        if (response && response.drafts) resolve(response);
+        else reject(new Error(response?.error || "取得失敗"));
+      });
+    });
+
+    if (!data.drafts || data.drafts.length === 0) {
+      addLog("ニュースドラフト取得失敗");
+      return;
+    }
+
+    showNewsDraftModal(data.drafts);
+  } catch (e) {
+    addLog(`ニュース取得エラー: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "AIニュース投稿";
+  }
+}
+
+function showNewsDraftModal(drafts) {
+  const overlay = document.createElement("div");
+  overlay.id = "xmh-news-overlay";
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100000;display:flex;align-items:center;justify-content:center;";
+
+  const modal = document.createElement("div");
+  modal.style.cssText = "background:#15202b;border:1px solid #38444d;border-radius:16px;padding:24px;max-width:560px;width:95%;color:#e7e9ea;font-family:-apple-system,sans-serif;max-height:80vh;overflow-y:auto;";
+
+  let draftsHTML = `<h3 style="color:#1d9bf0;margin:0 0 16px 0;">AIニュース投稿ドラフト</h3>`;
+
+  drafts.forEach((draft, i) => {
+    draftsHTML += `
+      <div style="background:#273340;border-radius:12px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:11px;color:#8b98a5;margin-bottom:6px;">${draft.source || "AI News"}</div>
+        <div style="font-size:14px;line-height:1.5;margin-bottom:10px;" id="xmh-draft-text-${i}">${draft.text}</div>
+        <div style="font-size:12px;color:#8b98a5;margin-bottom:8px;">${draft.text.length}文字</div>
+        <div style="display:flex;gap:6px;">
+          <button class="xmh-draft-post" data-index="${i}" style="padding:6px 16px;border:none;border-radius:9999px;background:#1d9bf0;color:white;font-size:13px;font-weight:700;cursor:pointer;">この内容で投稿</button>
+          <button class="xmh-draft-edit" data-index="${i}" style="padding:6px 16px;border:none;border-radius:9999px;background:#ff6b00;color:white;font-size:13px;font-weight:700;cursor:pointer;">編集して投稿</button>
+        </div>
+      </div>`;
+  });
+
+  draftsHTML += `<button id="xmh-news-close" style="width:100%;padding:10px;border:none;border-radius:9999px;background:#71767b;color:white;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;">閉じる</button>`;
+
+  modal.innerHTML = draftsHTML;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // 閉じる
+  document.getElementById("xmh-news-close").addEventListener("click", () => overlay.remove());
+
+  // そのまま投稿
+  modal.querySelectorAll(".xmh-draft-post").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const idx = parseInt(btn.dataset.index);
+      const text = drafts[idx].text;
+      overlay.remove();
+      await postTweet(text);
+    });
+  });
+
+  // 編集して投稿
+  modal.querySelectorAll(".xmh-draft-edit").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.index);
+      const text = drafts[idx].text;
+      overlay.remove();
+      openEditModal(text);
+    });
+  });
+}
+
+function openEditModal(initialText) {
+  const overlay = document.createElement("div");
+  overlay.id = "xmh-edit-overlay";
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100000;display:flex;align-items:center;justify-content:center;";
+
+  const modal = document.createElement("div");
+  modal.style.cssText = "background:#15202b;border:1px solid #38444d;border-radius:16px;padding:24px;max-width:500px;width:95%;color:#e7e9ea;font-family:-apple-system,sans-serif;";
+
+  modal.innerHTML = `
+    <h3 style="color:#ff6b00;margin:0 0 12px 0;">投稿を編集</h3>
+    <textarea id="xmh-edit-text" style="width:100%;height:150px;background:#273340;border:1px solid #38444d;border-radius:8px;color:#e7e9ea;padding:10px;font-size:14px;resize:vertical;box-sizing:border-box;font-family:-apple-system,sans-serif;line-height:1.5;">${initialText}</textarea>
+    <div style="font-size:12px;color:#8b98a5;margin:6px 0 12px;" id="xmh-edit-count">${initialText.length}文字</div>
+    <div style="display:flex;gap:8px;">
+      <button id="xmh-edit-post" style="flex:1;padding:10px;border:none;border-radius:9999px;background:#1d9bf0;color:white;font-size:14px;font-weight:700;cursor:pointer;">投稿する</button>
+      <button id="xmh-edit-cancel" style="flex:1;padding:10px;border:none;border-radius:9999px;background:#71767b;color:white;font-size:14px;font-weight:700;cursor:pointer;">キャンセル</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const textarea = document.getElementById("xmh-edit-text");
+  const counter = document.getElementById("xmh-edit-count");
+  textarea.addEventListener("input", () => {
+    counter.textContent = `${textarea.value.length}文字`;
+  });
+
+  document.getElementById("xmh-edit-cancel").addEventListener("click", () => overlay.remove());
+  document.getElementById("xmh-edit-post").addEventListener("click", async () => {
+    const text = textarea.value.trim();
+    if (!text) return;
+    overlay.remove();
+    await postTweet(text);
+  });
+}
+
+// X のツイート投稿欄に入力して投稿
+async function postTweet(text) {
+  // ホームに移動（投稿欄がある場所）
+  if (!location.href.includes("/home")) {
+    window.location.href = "https://x.com/home";
+    // ページ遷移後に投稿するためにlocalStorageに保存
+    localStorage.setItem("xmh-pending-post", text);
+    return;
+  }
+
+  await sleep(1);
+
+  // 投稿欄を探してクリック
+  const tweetBox = document.querySelector('[data-testid="tweetTextarea_0"]');
+  if (!tweetBox) {
+    addLog("投稿欄が見つかりません。ホーム画面で実行してください");
+    // クリップボードにコピー
+    navigator.clipboard.writeText(text).then(() => {
+      addLog("クリップボードにコピーしました。手動で貼り付けてください");
+    });
+    return;
+  }
+
+  tweetBox.focus();
+  await sleep(0.5);
+  document.execCommand("insertText", false, text);
+  await sleep(1);
+
+  // 投稿ボタンをクリック
+  const postBtn = document.querySelector('[data-testid="tweetButtonInline"]');
+  if (postBtn) {
+    postBtn.click();
+    addLog(`投稿完了: ${text.slice(0, 40)}...`);
+  } else {
+    addLog("投稿ボタンが見つかりません。手動で投稿してください");
+  }
+}
+
+// ページ読み込み時に保留中の投稿があればセット
+function checkPendingPost() {
+  const pending = localStorage.getItem("xmh-pending-post");
+  if (pending && location.href.includes("/home")) {
+    localStorage.removeItem("xmh-pending-post");
+    setTimeout(() => postTweet(pending), 3000);
+  }
 }
 
 // === ツイート横ボタン（手動モード） ===
@@ -668,6 +834,7 @@ function addTweetButtons() {
 
 // === 起動 ===
 setTimeout(createPanel, 2000);
+setTimeout(checkPendingPost, 3000);
 // ツイート横ボタンを定期的に追加（新しいツイートが読み込まれるたびに）
 setInterval(addTweetButtons, 2000);
 

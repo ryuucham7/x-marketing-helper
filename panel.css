@@ -62,6 +62,14 @@
   color: white;
 }
 
+#xmh-panel .xmh-btn-news {
+  background: #7856ff;
+  color: white;
+  margin-top: 12px;
+  border-top: 1px solid #38444d;
+  padding-top: 10px;
+}
+
 #xmh-panel .xmh-btn-stop {
   background: #71767b;
   color: white;

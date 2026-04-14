@@ -6,6 +6,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch((err) => sendResponse({ error: err.message }));
     return true;
   }
+  if (request.type === "getNewsDrafts") {
+    fetchNewsDrafts()
+      .then((data) => sendResponse(data))
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
 });
 
 async function generateReply(tweetText) {
@@ -23,4 +29,12 @@ async function generateReply(tweetText) {
   const data = await response.json();
   if (data.error) throw new Error(data.error);
   return data.reply;
+}
+
+async function fetchNewsDrafts() {
+  const response = await fetch("http://localhost:3456/news-drafts");
+  if (!response.ok) {
+    throw new Error(`Server error ${response.status}`);
+  }
+  return response.json();
 }
