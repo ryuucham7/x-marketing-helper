@@ -83,6 +83,7 @@ const DEFAULT_SETTINGS = {
 let running = false;
 let counts = { likes: 0, follows: 0, replies: 0, skipped: 0 };
 let settings = { ...DEFAULT_SETTINGS };
+const processedUsers = new Set(); // いいね済みアカウントを記録
 
 // === ユーティリティ ===
 function sleep(sec) {
@@ -164,6 +165,12 @@ function getTweetText(article) {
 function getTweetUser(article) {
   const el = article.querySelector('[data-testid="User-Name"]');
   return el ? el.innerText : "";
+}
+
+function getTweetHandle(article) {
+  const user = getTweetUser(article);
+  const match = user.match(/@[\w]+/);
+  return match ? match[0] : "";
 }
 
 // === アクション ===
@@ -336,9 +343,16 @@ async function runLikes() {
         continue;
       }
 
+      // 同一アカウントスキップ
+      const handle = getTweetHandle(tweet);
+      if (handle && processedUsers.has(handle)) {
+        continue;
+      }
+
       const liked = await likeOne(tweet);
       if (liked) {
         counts.likes++;
+        if (handle) processedUsers.add(handle);
         const user = getTweetUser(tweet).split("\n")[0];
         addLog(`LIKE: ${user}`);
         updateStats();
@@ -381,11 +395,15 @@ async function runLikeReply() {
         continue;
       }
 
+      const handle = getTweetHandle(tweet);
+      if (handle && processedUsers.has(handle)) continue;
+
       // いいね
       if (counts.likes < settings.maxLikes) {
         const liked = await likeOne(tweet);
         if (liked) {
           counts.likes++;
+          if (handle) processedUsers.add(handle);
           const user = getTweetUser(tweet).split("\n")[0];
           addLog(`LIKE: ${user}`);
           updateStats();
@@ -402,7 +420,7 @@ async function runLikeReply() {
           const user = getTweetUser(tweet).split("\n")[0];
           addLog(`REPLY: ${user} ← "${reply}"`);
           updateStats();
-          await sleep(settings.delay * 2); // リプは間隔長めに
+          await sleep(settings.delay * 2);
         }
       }
     }
@@ -444,11 +462,15 @@ async function runAll() {
         continue;
       }
 
+      const handle = getTweetHandle(tweet);
+      if (handle && processedUsers.has(handle)) continue;
+
       // いいね
       if (counts.likes < settings.maxLikes) {
         const liked = await likeOne(tweet);
         if (liked) {
           counts.likes++;
+          if (handle) processedUsers.add(handle);
           const user = getTweetUser(tweet).split("\n")[0];
           addLog(`LIKE: ${user}`);
           updateStats();
